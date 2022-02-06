@@ -1,14 +1,6 @@
 #-------------------------------------------------------------------------
 # Build allcal
 #-------------------------------------------------------------------------
-# Project: tcg
-# Status:	development
-#-------------------------------------------------------------------------
-# $Source: /Users/gbowes/tcg/src/sql/RCS/build-allcal.sql,v $
-# $Id: build-allcal.sql,v 1.4 2015/10/14 17:11:35 gbowes Exp $
-#-------------------------------------------------------------------------
-# Jerry Bowes, jerbowes@yahoo.com, gbowes@stanford.edu
-#-------------------------------------------------------------------------
 #ID|YYYYMMDD|YYYY-MM_DD|Year|Month|Day|
 #WeekOfYear|WeekOfMonth|BOW_Month_of_Year|BOW_Day|
 #Weekday|is_bow|Julian
