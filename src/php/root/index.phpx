@@ -1,0 +1,551 @@
+<?php
+	//#==================================================================
+	//# JBN Home page (Mostly a FAQ)
+	//#------------------------------------------------------------------
+	//# $Id: index.php,v 1.26 2022/06/27 16:08:05 jbowes Exp $
+	//#------------------------------------------------------------------
+	//# SET EDITOR FOR 4 space TAB stops
+	//# :set autoindent tabstop=4 showmatch	 (vi)
+	//#==================================================================
+
+	require_once("./include/jbn-auth-inc.php");
+	require_once("./include/jbn-config-inc.php");
+	require_once("./include/jbn-looknfeel-inc.php");
+	require_once("./include/jbn-msutils-inc.php");
+	require_once("./include/jbn-session-inc.php");
+
+	//--------------------------------------------------------------------------
+	// If you are not authenticated (no people_id in $_SESSION), 
+	// Construct return url and redirect to login for authentication
+	//--------------------------------------------------------------------------
+	//
+	global $JBNCFG;
+
+   	if (session_status() == PHP_SESSION_NONE) {
+       	session_start();
+   	}
+	
+
+	//------------------------------------------------------------------------
+	// Formatting and navbar options for looknfeel-inc header/footer functions
+	//------------------------------------------------------------------------
+	//
+	$FMT = array (
+		'BANNER'		=>	"Welcome to Jerry Bowes Homepage",
+		'BANNER2'		=>	"Frequently asked questions (and answers!)",
+		'BANNER3'		=>	"Jerry is a retired renaissance techie living in the southern Francisco Bay area",
+		'TITLE'			=>	"Jerry Bowes a retired techie in the San Francisco Bay Area",
+		'MODULENAME'	=>	"index.php",
+		'NAV1'			=>	"INFO"	// Level 1 menu navigation group
+	);
+
+	//------------------------------------------------------------------------
+	// Local configuration parameters
+	//------------------------------------------------------------------------
+	$FAQCFG = array (
+		'EDITLEVEL'		=>	'5'			// Access level to get edit screen
+	);
+
+	//------------------------------------------------------------------------
+	// Database Fields
+	//------------------------------------------------------------------------
+	$ALLFIELD = array(
+		'faq_id',
+		'faq_class',
+		'faq_topic',
+		'faq_category',
+		'faq_state',
+		'faq_type',
+		'faq_subcategory',
+		'faq_audience',
+		'faq_keywords',
+		'faq_summary',
+		'assignee_id',
+		'shelf_life',
+		'more_info',
+		'last_modified',
+		'faq_content'
+	);
+
+	//
+	//	Fields visible in query output list
+	//
+	$SHOW = array(
+		'faq_topic',
+		'faq_category',
+		//'shelf_life',
+		//'faq_audience',
+		//'last_modified',
+		//'faq_type'
+		'faq_summary',
+	);
+
+	//
+	// Fields that can have query drill down links on display
+	//
+	$LINK = array(
+		'faq_type',
+		'faq_audience',
+		'faq_category',
+		'faq_topic'
+	);
+	//
+	// Fields that are from a Menu Picklist that can have new members
+	//
+	$EXTEND = array(
+		'faq_type',
+		'faq_category',
+		'faq_topic'
+	);
+
+	//
+	// Required for New Entry
+	//
+	$RequiredField = array(
+		'faq_summary'	=>	'enter faq summary',
+		'faq_content'	=>	'enter faq content in html',
+		'assignee_id'	=>	'choose name of author or maintainer',
+		'faq_class'	=>	'select class from list',
+		'faq_type'	=>	'select type from list or enter new faq type'
+	);
+	//
+	// Global query choices
+	//
+	$InValidChoice = array(
+		'All',
+		'',
+		' ',
+		'None',
+		'Choose'
+	);
+	//
+	// Edit record fields with edit disabled
+	//
+	$NoEdit = array(
+		'faq_id',
+		'last_modified'
+	);
+
+	$FieldType = array(
+		'assignee_id'		=>	'MenuArray',
+		'faq_audience'		=>	'Menu',
+		'faq_category'		=>	'Menu',
+		'faq_class'			=>	'Menu',
+		'faq_content'		=>	'TextArea',
+		'faq_keywords'		=>	'LongText',
+		'faq_state'			=>	'Menu',
+		'faq_summary'		=>	'LongText',
+		'faq_topic'			=>	'Menu',
+		'faq_type'			=>	'Menu',
+		'shelf_life'		=>	'MenuArray'
+	);
+
+	$BASE = "SELECT choice FROM menu WHERE table_name = 'faq' AND ";
+	$LBASE = "SELECT choice, description FROM menu WHERE table_name = 'faq' AND ";
+
+	$Menu = array(
+		"assignee_id"	=> "SELECT people_id, full_name from people order by last_name, first_name",
+		"faq_type"		=> "SELECT DISTINCT faq_type from faq order by faq_type",
+		"faq_state"		=> "$BASE field_name = 'faq_state' order by choice",
+		"faq_topic"		=> "SELECT distinct faq_topic from faq order by faq_topic",
+		"faq_category"		=> "SELECT distinct faq_category from faq order by faq_category",
+		"faq_audience"		=> "$BASE field_name = 'faq_audience' order by choice",
+		"shelf_life"		=> "$LBASE field_name = 'shelf_life' order by choice",
+		"faq_class"		=> "$BASE field_name = 'faq_class' order by choice"
+	);
+
+	//
+	// Display exceptions from default tdcs centered display table cell
+	//
+	$JustifyCss = array(
+		//'faq_audience'		=>	'tds',	// small left justified
+		'faq_summary'		=>	'tds',	// small left justified
+		'faq_topic'			=>	'tds',	// small left justified
+		'faq_category'		=>	'tds',	// small left justified
+		'faq_type'			=>	'tds',	// small left justified
+	);
+
+	//------------------------------------------------------------------------
+	// BEGIN Program
+	//------------------------------------------------------------------------
+
+	spew_header($FMT);
+
+	if (!array_key_exists('Action', $_REQUEST)) {
+			$_REQUEST['Action'] = 'ShowAll';
+	}
+
+	if (array_key_exists('Action', $_REQUEST)) {
+
+		echo "<PRE>\n";		// DEVONLY
+		print_r($_REQUEST);	// DEVONLY
+		echo "</PRE>\n";	// DEVONLY
+
+
+		//----------------------------------------------------------------------
+	  	//  Show: User read version
+		//----------------------------------------------------------------------
+	  	if ($_REQUEST['Action'] == "Show") {
+
+			if (! array_key_exists('faq_id', $_REQUEST)) {
+				die ("No FAQ Id Set in Show function") ;
+			}else{
+				$faq_id = $_REQUEST['faq_id'];
+			}
+			if (! is_numeric( $faq_id ) ) {
+				die ("ERROR: Attempt to show a Faq requires faq_id to be an integer. It is not.");
+			}
+
+			$dbh = jbn_pdo_connect();
+
+			$fieldlabel = array ();
+			$fieldlabel = get_field_labels('faq','faq',$JBNCFG['DBNAME']);
+
+			$sql = "SELECT f.*, p.full_name FROM faq f, people p ";
+			$sql .= " WHERE faq_id = '$faq_id'";
+			$sql .= " AND f.assignee_id = p.people_id ";
+
+			echo "<P class=trace>$sql</P>\n";	// DEVONLY
+			$result = $dbh->query($sql);
+			$row =  array();
+			$row = $result->fetch(PDO::FETCH_ASSOC);
+
+			echo "<CENTER>\n";
+			echo "<P>&nbsp;</P>\n";
+			echo "<TABLE BORDER=0>\n";
+			$viewlist = array (
+				'faq_class',
+				'faq_category',
+				'faq_type'
+				);
+
+			foreach ($viewlist as $f) {
+				echo "<TH class=tht>$fieldlabel[$f]</TH>\n";
+			}
+
+			echo "<TR>";
+			foreach ($viewlist as $f) {
+				if (isset( $row[$f] )) {
+					//echo "<TD class=tdt>$fieldlabel[$f]</TD>\n";
+					$display = $row[$f];
+					if ( $f == 'assignee_id' ) {
+						$aid = $row[$f];
+						$display = $row['full_name'];
+					}
+					echo "<TD class=tdt><A HREF=$_SERVER[PHP_SELF]?$f=";
+					echo urlencode($row[$f]); 
+					echo "&Action=List><B>$display</B></A></TD>\n";
+				}
+			}//Endforeach ($viewlist as $f) {
+
+			echo "</TABLE>\n";
+			echo "<P>\n";
+
+			echo "<TABLE  WIDTH=50% CELLPADDING=5 CELLSPACING=4>\n";
+			echo "<TH class=ths>$row[faq_summary]</TH>\n";
+			echo "<TR>\n";
+			echo "<TD COLSPAN=2>\n";
+			echo "$row[faq_content]";
+			echo "</TD>\n";
+			echo "</TABLE>\n";
+			echo "</P>\n";
+
+			echo "</CENTER>\n";
+	  	}//Endif ($_REQUEST['Action'] == "Show")
+
+
+		//----------------------------------------------------------------------
+	  	//  ShowAll
+		//----------------------------------------------------------------------
+	  	if ($_REQUEST['Action'] == "ShowAll") {
+
+			echo "<PRE>\n";		// DEBUG DEVONLY
+			print_r($_SESSION);	// DEBUG DEVONLY
+			echo "</PRE>\n";	// DEBUG DEVONLY
+
+			$dbh = jbn_pdo_connect();
+
+			echo "<CENTER>\n";
+
+			//---------------------------------------------------
+			// Spew FAQ Information
+			//---------------------------------------------------
+
+			$sql = "SELECT * from faq ";
+			$sql .= " WHERE faq_access = 'Public'";
+			$sql .= " order by faq_audience, faq_id";
+			$result = $dbh->query($sql);
+
+			echo "<P class=trace>$sql</P>\n";	// DEVONLY
+
+			echo "<TABLE WIDTH=70%>\n";
+			echo "<TR><TD>\n";
+
+			$old_audience = '';
+			//$old_audience = 'General';
+			echo "<H4>General Information about Jerry and this Website</H4>\n";
+			echo "<OL>\n";
+
+			while ($row = $result->fetch(PDO::FETCH_ASSOC)){
+				if ( $old_audience != $row['faq_audience'] ){
+					if ( isset ($old_audience)){
+						echo "</OL>";
+						echo "<H4>For $row[faq_audience]</H4>\n";
+						echo "<OL>\n";
+					}
+					$old_audience = $row['faq_audience'];
+				}
+				$faqid = $row['faq_id'];
+				echo "<LI><A HREF=/faq.php?faq_id=$faqid&Action=Show>$row[faq_summary]</A></LI>\n";
+			}
+
+			echo "</OL>\n";
+			echo "</TD>\n";
+			echo "</TR>\n";
+			echo "<TR><TD><HR></TD></TR>\n";
+			echo "</TABLE>\n";
+
+			$result = $dbh->query($sql);
+
+			echo "<TABLE WIDTH=70%>\n";
+			echo "<TR><TD>\n";
+
+			$old_audience = '';
+			while ($row = $result->fetch(PDO::FETCH_ASSOC)){
+				if ( $old_audience != $row['faq_audience'] ){
+					echo "<H4>For $row[faq_audience]</H4>\n";
+					$cnt=0;
+					$old_audience = $row['faq_audience'];
+				}
+				$faqid = $row['faq_id'];
+				$cnt++;
+				echo "<P><B>${cnt}.&nbsp;" . "$row[faq_summary]</B></P>\n";
+				echo "$row[faq_content]\n";
+			}
+
+			echo "</TD>\n";
+			echo "</TR>\n";
+			echo "</TABLE>\n";
+
+			echo "</CENTER>\n";
+	  	}//if ($_REQUEST['Action'] == "ShowAll"))  
+
+		//----------------------------------------------------------------------
+	  	//  List
+		//----------------------------------------------------------------------
+	  	if ($_REQUEST['Action'] == "List"
+	  		|| $_REQUEST['Action'] == "List Summary" ) {
+
+			echo "<PRE>\n";		// DEBUG DEVONLY
+			print_r($_SESSION);	// DEBUG DEVONLY
+			echo "</PRE>\n";	// DEBUG DEVONLY
+
+			$dbh = jbn_pdo_connect();
+			$fieldlabel = array();
+
+			$fieldlabel = get_field_labels('faq','faq',$JBNCFG['DBNAME']);
+			$fields = array_keys($fieldlabel);
+
+			//----------------------------------------------------------
+			// Capture previous selection criteria and append to links
+			// To enable drill down subqueries
+			//----------------------------------------------------------
+
+			foreach(explode( '&', $_SERVER['QUERY_STRING'])  as $entry ) {
+				list($key, $val) = explode( '=', $entry);	
+
+				if ( ! empty( $val ) ) {
+					if (! in_array($val, $InValidChoice)) {
+						if (in_array($key, $ALLFIELD) ) {
+							$parameters[$key] = $val;
+						}
+					}
+				}
+			}
+			$parameters['Action'] = $_REQUEST['Action'];
+
+			//----------------------------------------------------------
+			// Uniquify for duplicate entries
+			//----------------------------------------------------------
+			$validentries = array();
+
+			foreach ($parameters as $key => $val ) {
+				$val = preg_replace('/\s+/', '+', $val);
+				$validentries[] = $key . '=' . $val;
+			}
+
+			if (count($validentries)) {
+				$drilldown = implode('&', $validentries);
+			}
+
+			//
+			// Base sql query
+			//
+			$What = array(
+				'f.*', 
+				'p.full_name'
+			);
+
+			$WhereVal = array();
+			$Where = array(
+				'f.assignee_id = p.people_id'
+			);
+
+			$From = array(
+				'faq'		=>	'f',
+				'people'	=>	'p'
+			);
+
+			//
+			// Construct where clause into an array
+			//
+			foreach ($fields as $f) {
+				if (array_key_exists($f, $_REQUEST)) { 
+					$val = $_REQUEST[$f];
+
+					if (in_array( $val, $InValidChoice ) ){
+						unset($val) ;
+                    }else{
+						$Where[] = "f." . $f . '= ?';
+					    $WhereVal[] = $_REQUEST[$f] ;
+					}
+				}
+			}
+
+			$sql = "SELECT DISTINCT " . implode(',', $What);
+
+			$Fromsql = array();
+
+			foreach ($From as $table => $abbr) {
+				$Fromsql[] = $table . ' ' . $abbr;
+			}
+			$Fromsql = array_unique($Fromsql);
+
+			$sql .= ' FROM ' . implode(', ', $Fromsql);
+
+			if ( count($Where) ) {
+				$sql .= ' WHERE ' . implode(' AND ', $Where);
+			}
+
+			//---------------------------------------------------
+			// ORDER BY
+			//---------------------------------------------------
+			$OrderBy = array(
+				'Author'		=>	'p.nickname, f.faq_summary',
+				'Category'		=>	'f.faq_category, f.faq_summary',
+				'Audience'		=>	'f.faq_audience, f.faq_summary',
+				'Name'			=>	'f.faq_summary',
+				'Topic'			=>	'f.faq_topic, f.faq_summary',
+				'Type'			=>	'f.faq_type, f.faq_summary'
+			);
+
+			$sortby = $_REQUEST['Sortmeby'];
+			$sby = $OrderBy[$sortby];
+
+			if (empty ($sby)){
+				$sql .= ' ORDER BY f.faq_summary';
+			}else{
+				$sql .= ' ORDER BY ' . $sby;
+			}
+
+			echo "<P class=trace>$sql</P>\n";	// DEVONLY
+			$sth = $dbh->prepare($sql, array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY));
+			$sth->execute($WhereVal);
+
+			// Blurb
+			echo "<CENTER>\n";
+			echo "<P>\n";
+			echo "Column entry links will &quot;drill down&quot; to refine your query.\n";
+			echo "<BR>Click on summary link to see entire FAQ.\n";
+			echo "</P>\n";
+
+			//---------------------------------------------------
+			// Spew table
+			//---------------------------------------------------
+			echo "<TABLE>\n";
+
+			if ($_SESSION['access_level'] >= $FAQCFG['EDITLEVEL'] ) {
+				echo "<TH >Edit</TH>\n";		// SECURITY
+				echo "<TH >View</TH>\n";
+			}
+
+			foreach ($ALLFIELD as $f) {
+				if (in_array($f, $SHOW)) {
+					echo "<TH >$fieldlabel[$f]</TH>\n";
+				}
+			}
+
+			while ($row = $sth->fetch(PDO::FETCH_ASSOC)){
+				$css = "tdc";
+				echo "<TR>\n";
+
+				// Edit if authorized
+				// SECURITY
+				if ($_SESSION['access_level'] >= $FAQCFG['EDITLEVEL'] ) {	
+					echo "<TD ALIGN=CENTER VALIGN=TOP class=$css>";
+					echo "<A HREF=$_SERVER[PHP_SELF]?faq_id=$row[faq_id]";
+					echo "&Action=Edit>";
+					echo "<IMG SRC=/images/smallballs/greenball.gif BORDER=0></A>";
+					echo "</TD>\n";
+	
+					// View
+					echo "<TD ALIGN=CENTER VALIGN=TOP class=$css>";
+					echo "<A HREF=$_SERVER[PHP_SELF]?faq_id=$row[faq_id]";
+					echo "&Action=View>";
+					echo "<IMG SRC=/images/smallballs/yellowball.gif BORDER=0></A>";
+					echo "</TD>\n";
+				}
+	
+				foreach ($ALLFIELD as $f) {
+					$css = "tdc";
+					$display = stripslashes($row[$f]); 
+
+					//
+					// Display Exceptions (lookup)
+					//
+					if ( $f  == 'faq_summary' ) {
+						$display = "<A HREF=$_SERVER[PHP_SELF]?faq_id=$row[faq_id]&Action=Show>";
+						$display .= "$row[$f]</A>\n";
+					}
+
+					if ( $f  == 'maintainer_id' ) {
+						$display = $row['full_name'];
+					}
+
+
+					if (in_array($f, $SHOW)) {
+
+						if (array_key_exists($f, $JustifyCss)) {
+							$css = $JustifyCss[$f];
+						}
+
+						echo "<TD VALIGN=TOP class=$css>";
+						if (in_array($f, $LINK)) {
+							echo "<A HREF=";
+							echo "$_SERVER[PHP_SELF]";
+							echo '?';
+							$url = preg_replace('/\s+/', '+', $row[$f]);
+							echo "$f=${url}"; 
+							echo "&${drilldown}>";
+							echo "$display</A>\n";
+						}else{
+							echo "$display\n";
+						}
+						echo "<BR></TD>\n";
+					}
+				}
+			}
+			echo "</TABLE>\n";
+			echo "</CENTER>\n";
+	  	}//if ($_REQUEST['Action'] == "List"))  
+
+
+		//----------------------------------------------------------------------
+		// END 'Action' Processing Options
+		//----------------------------------------------------------------------
+
+	}
+
+	spew_footer($FMT);
+		
+?>

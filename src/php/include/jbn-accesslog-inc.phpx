@@ -1,0 +1,109 @@
+<?php
+	//------------------------------------------------------------------
+	// Access Log
+	//------------------------------------------------------------------
+
+	//===================================================================
+	//  Log Access
+	//===================================================================
+	function logAccess( array $X ){
+		echo "<P class=trace>Entering logAccess </P>\n";	// DEVONLY
+
+		$LogWhat = array(
+    		'access_action',
+    		'access_login',
+    		'access_result',
+    		'access_status',
+    		'context',
+    		'people_id',
+			'proxyuser_id',
+			'source_ip',
+		);
+
+		echo "<PRE>\n";	// DEVONLY
+		echo "<B>REQUEST</B>\n";	// DEVONLY
+		print_r($_REQUEST); 	// DEVONLY
+		echo "<B>SESSION</B>\n";	// DEVONLY
+		print_r($_SESSION); 	// DEVONLY
+		echo "<B>Input Data to AccessLog</B>\n";	// DEVONLY
+		print_r($X); 	// DEVONLY
+		echo "<B>LogWhat</B>\n";	// DEVONLY
+		print_r($LogWhat); 	// DEVONLY
+		echo "<B>SERVER</B>\n";	// DEVONLY
+		print_r($_SERVER);	// DEVONLY
+		echo "</PRE>\n";	// DEVONLY
+
+		$dbh = jbn_pdo_connect();
+
+		//
+		// Define default values
+		//
+		$Default = array ();
+		$Default['source_ip'] = $_SERVER['REMOTE_ADDR'];
+
+		if ( isset($_SESSION['proxy_id'])){
+			echo "<P class=trace>Exists session for proxy_id</P>\n";	// DEVONLY
+			$Default['proxyuser_id'] = $_SESSION['proxy_id'];
+			echo "<P class=trace>Set Default proxyuser_id to session proxy_id: $_SESSION[proxy_id]</P>\n";	// DEVONLY
+		}else{
+			echo "<P class=trace>NOT Exists session for proxy_id</P>\n";	// DEVONLY
+			$Default['proxyuser_id'] = 0;
+			echo "<P class=trace>Set Default proxyuser_id to zero</P>\n";	// DEVONLY
+		}
+
+		if (! isset($_REQUEST['access_login']) ){
+			if ( isset($_REQUEST['people_id']) ){
+				$sql = "SELECT access_login from access where people_id = " . $_REQUEST['people_id'];
+				echo "<P class=trace>$sql</P>\n";	// DEVONLY
+				$Default['access_login'] = get_value($sql);
+			}else{
+				echo "<P class=trace>No access_login or people_id in REQUEST</P>\n";	// DEVONLY
+			}
+		}
+
+		echo "<PRE>\n";				// DEVONLY
+		echo "<B>Default Access Log Array </B>\n";	// DEVONLY
+		print_r($Default);			// DEVONLY
+		echo "</PRE>\n";			// DEVONLY
+
+		//
+		// Setup default values
+		//
+		foreach ($Default as $key => $val ) {
+			if ( ! isset ( $X[$key]) ) {
+				$X[$key] = $val;
+			}
+		}
+
+		$Data = array();
+
+		foreach ( $LogWhat as $f) {
+			if ( array_key_exists($f, $X)) {
+				if (! empty($X[$f] )){
+					$Data[$f] = $dbh->quote($X[$f]);
+				}
+			}
+		}
+
+		echo "<PRE>\n";	// DEVONLY
+		echo "<B>Data Into Accesslog</B>\n";	// DEVONLY
+		print_r($Data); 	// DEVONLY
+		echo "</PRE>\n";	// DEVONLY
+
+		$sql = 'INSERT INTO accesslog (';
+		$sql .= implode(', ', array_keys($Data) );
+		$sql .= ") VALUES (";
+		$sql .= implode(', ', array_values($Data) );
+		$sql .= ")";
+
+		echo "<P class=trace>$sql</P>\n"; 	// DEVONLY
+
+		$dbh->query($sql);
+		$aclog_id = $dbh->lastInsertId() ;
+		echo "<P class=trace>AccessLog ID: $aclog_id</P>\n"; 	// DEVONLY
+		1;
+	}
+
+
+    1;
+

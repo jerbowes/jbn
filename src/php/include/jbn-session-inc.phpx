@@ -1,0 +1,106 @@
+<?php
+	//===================================================================
+	// Session Management
+	//===================================================================
+	require_once('jbn-msutils-inc.php');
+    require_once('jbn-config-inc.php');
+
+	//------------------------------------------------------------------
+	// Function jbn_session_start
+	//------------------------------------------------------------------
+	function jbn_session_start(int $people_id) {	
+		$me = "session-inc.php";
+		$trace = time();
+
+        if (session_status() == PHP_SESSION_NONE) {
+		    session_start();
+        }
+
+		//
+		// Verify valid people_id
+		//
+		if (! is_numeric($people_id) ) {
+			die("Attempted to run jbn_session_start with non-numeric people_id ($people_id) in $me");
+		}
+		//
+
+		global $JBNCFG;
+
+		//
+		// Do Database lookups for everything to stuff into session
+		//
+		$dbh = jbn_pdo_connect();
+
+		$sql = "SELECT p.people_id, p.first_name, p.last_name, p.full_name, p.email_1,";
+		$sql .= " a.access_level, a.access_class ";
+		$sql .= " FROM people p, access a";
+		$sql .= " WHERE p.people_id = $people_id AND a.people_id = p.people_id";
+		$trace .= "<P class=trace>$sql</P>\n"; // DEBUG DEVONLY
+
+		$result = $dbh->query($sql);
+		$num = $result->rowCount();
+
+		$trace .= "<P class=trace>Returned $num records</P>\n"; // DEBUG DEVONLY
+
+		if ( $num == 1  ) {
+			$_SESSION['people_id'] = $people_id;
+			$_SESSION['proxy_id'] = $people_id;
+		}
+
+		//
+		// Load More Data into session
+		//
+
+		$Access = array();
+		$Access = $result->fetch(PDO::FETCH_ASSOC);
+
+		if (isset ($Access['access_level'])  ) {
+			$_SESSION['access_level'] = $Access['access_level'];
+
+			if ($Access['access_level'] >= 5)  {
+				$_SESSION['admin_id'] = $people_id;
+			}
+
+			if ($Access['access_level'] >= 3)  {
+				$_SESSION['staff_id'] = $people_id;
+			}
+
+			$_SESSION['name'] = $Access['full_name'];
+			$_SESSION['full_name'] = $Access['full_name'];
+		}
+
+		if (isset ($Access['access_class'])  ) {
+			$_SESSION['access_class'] = $Access['access_class'];
+		}
+
+		//
+		// Beware, $_SESSION merges COOKIE with PUT, GET pre php 5.3
+    	//setcookie('people_id', $people['people_id'], time() + 3600, '/', $JBNCFG[DOMAIN]);
+
+		session_write_close();
+		return($trace);
+	}
+	//------------------------------------------------------------------
+	// Function jbn_session_end
+	//------------------------------------------------------------------
+	function jbn_session_end() {
+        if (session_status() == PHP_SESSION_NONE) {
+            session_start();
+        }
+
+		// Unset all of the session variables.
+		$_SESSION = array();
+
+		// If it's desired to kill the session, also delete the session cookie.
+		// Note: This will destroy the session, and not just the session data!
+
+		if (ini_get("session.use_cookies")) {
+    		$params = session_get_cookie_params();
+    		setcookie(session_name(), '', time() - 42000,
+        		$params["path"], $params["domain"],
+        		$params["secure"], $params["httponly"]
+    		);
+		}
+		session_destroy();
+	}
+?>

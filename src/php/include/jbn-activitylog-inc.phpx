@@ -1,0 +1,93 @@
+<?php
+	//#==================================================================
+	//# Activity Logging
+	//===================================================================
+
+	function logActivity ( array $X ){
+        
+        // action            | varchar(30)   
+        // activitylog_class | varchar(30)
+        // context           | varchar(120)   
+        // login_as          | int(10) unsigned not null
+        // module            | varchar(30)   
+        // people_id         | int(10) unsigned not null
+        // url               | varchar(250)   
+        // command           | varchar(250)   
+
+	    require_once ('jbn-config-inc.php');
+    	require_once ('jbn-msutils-inc.php');
+
+        global $DANCESONGSCFG;
+
+		echo "<P class=trace>Entering logActivity </P>\n";	// DEVONLY
+
+		$dbh = jbn_pdo_connect();
+
+		$fieldlabel = get_field_labels('activitylog','activitylog',$DANCESONGSCFG['DBNAME']);
+
+		$fields = array_keys($fieldlabel);
+
+		$LogData = array();
+
+		$Required = array (
+			'people_id'			=>	'id of person taking action',
+			'login_as'			=>	'id of person as they originally logged in',
+			'url'				=>	'url used by person taking action',
+			'action'			=>	'module function or action',
+			//'context'			=>	'module function',
+			//'command'			=>	'command or execution attempted',
+			'module'		    =>	'table or module name',
+			'activitylog_class'	=>	'activity log class',
+		);
+
+		$Default = array();
+
+        if (isset($_SESSION['people_id'])){
+		    $Default['people_id'] = $_SESSION['people_id'];
+        }else{
+		    $Default['people_id'] = 9;
+        }
+        $Default['url'] = $_SERVER['REQUEST_URI'];
+
+
+        //
+        // Fill in missing entries from $Default
+        //
+		foreach ( $fields as $f ){
+			if ( isset ($X{$f}) && !empty($X[$f]) ) {
+				$LogData[$f] = $dbh->quote($X[$f]);
+			}else{
+				if ( isset($Default[$f]) && ! empty($Default[$f]) ){
+					$LogData[$f] = $dbh->quote($Default[$f]);
+				}
+			}
+		}
+
+        //
+        // Data Integrity: Verified all required entries entered
+        //
+		foreach ( $Required as $rkey => $rval ){
+			if (! isset ($LogData{$rkey}) ) {
+				$emsg = " <LI>Module log activity needs $rval</LI>";
+				$msg = ( isset($msg) ? ( $msg . $emsg) : $emsg);
+			}
+		}
+
+		if ( isset( $msg ) ) {
+            echo "<CENTER>\n";              // DEVONLY
+            echo "<TABLE BORDER=5 WIDTH=50%>\n";              // DEVONLY
+            echo "<TH class=ths>Activity Log Warning</TH>\n";    // DEVONLY
+			echo "<TR><TD><UL>$msg</UL></TD></TR></TABLE>\n";	// DEVONLY
+            echo "</CENTER>\n";              // DEVONLY
+		}
+
+		$sql = "INSERT INTO activitylog (" ;
+		$sql .= implode(',', array_keys($LogData) );
+		$sql .= ") VALUES (";
+		$sql .= implode(',', array_values($LogData) );
+		$sql .= ")";
+		echo "<P class=trace>$sql</P>\n"; 	// DEVONLY
+		$dbh->query($sql);
+	}
+
+?>

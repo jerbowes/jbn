@@ -1,0 +1,47 @@
+<?php
+//===================================================================
+//= Help Functions
+//===================================================================
+
+require_once("jbn-config-inc.php");
+//--------------------------------------------------------------------
+// Spew Help Linke
+//--------------------------------------------------------------------
+function helplink($type,$string,$hint) {
+	global $JBNCFG;
+	$HelpIcon = array(
+		'1'	=>	'q4_00FF99_10_10.png',	// Basic Help
+		'2'	=>	'q2_10_10.png',	// X2 Help
+		'3'	=>	'q3_10_10.png',	// X3 Help
+		'4'	=>	'q4_10_10.png',	// X4 Help
+		'5'	=>	'q5_10_10.png',	// X5 Help
+		'6'	=>	'q6_10_10.png',	// X6 Help
+		'7'	=>	'q1_10_10.png',	// X6 Help
+		'9'	=>	'q4x_00FF99_10_10.png'	// Multiple Options
+	);
+
+	$HelpTitle = array(
+		'1'	=>	'Basic Help',	// Basic Help
+		'2'	=>	'X2 Help',	// X2 Help
+		'3'	=>	'X3 Help',	// X3 Help
+		'4'	=>	'X4 Help',	// X4 Help
+		'5'	=>	'X5 Help',	// X5 Help
+		'6'	=>	'X6 Help',	// X6 Help
+		'7'	=>	'X7 Help',	// X6 Help
+		'9'	=>	'Menu option explanations'	// Multiple Options
+	);
+
+	echo "&nbsp;<A HREF=$JBNCFG[BASEURL]/help.php?$string&Action=Help>";
+	echo "<IMG SRC=\"/images/icons/$HelpIcon[$type]\" TITLE=\"$HelpTitle[$type]";
+
+	if (! empty($hint) ) {
+		echo ": $hint";
+	}
+
+	echo "\" BORDER=0>";
+	echo "</A>\n";
+}//End helplink
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
+
+?>

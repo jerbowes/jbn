@@ -1,0 +1,121 @@
+<?php
+	//==================================================================
+	// Look And Feel (Headers and Footers) for dance-songs
+	//==================================================================
+	require_once("jbn-config-inc.php");
+
+	//--------------------------------------------------------------------
+	// Spew Header
+	//--------------------------------------------------------------------
+	function spew_header($FMT) {
+
+		global $JBNCFG;
+
+		foreach ($JBNCFG as $key => $val ) {
+			if (! empty ($FMT[$key]) ) {
+				$FMT[$key] = $val;
+			}
+		}
+		echo "<!DOCTYPE html>\n";
+		echo "<HTML>\n";
+		echo "<HEAD>\n";
+		echo "<TITLE> $FMT[TITLE] </TITLE>\n";
+
+		if ( isset ( $FMT['DESCRIPTION'] )) {
+			echo "<META NAME=\"DESCRIPTION\" VALUE=\"$FMT[DESCRIPTION]\">\n";
+		}
+
+		//
+		// Language encoding
+		//
+		echo "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n";
+		if ( isset ( $FMT['REFRESH'] )) {
+			echo "<meta http-equiv=\"refresh\" content=\"$FMT[REFRESH]\">\n";
+		}
+
+		if ( isset ( $FMT['CSS'] )) {
+  			echo "<LINK HREF=/css/$FMT[CSS].css REL=stylesheet TYPE=text/css>\n";
+		}else{
+  			echo "<LINK HREF=/css/jbn.css REL=stylesheet TYPE=text/css>\n";
+		}
+
+		echo "</HEAD>\n";
+
+
+		echo "<CENTER>\n";
+
+		echo "<TABLE WIDTH=100%>\n";
+		echo "<TR><TD class=tdcs WIDTH=10%>";
+		echo "<A HREF=/index.php>";
+        echo "<IMG SRC=/images/jbn/logos/jbowes_helicopter_headshot_360x270.png";
+        echo " HEIGHT=135 WIDTH=180>\n";
+        echo "</A>\n";
+        echo "</TD>\n";
+
+		echo "<TD class=tdcs><H2>$FMT[BANNER]</H2>";
+
+		if ( isset($FMT['BANNER2'])){
+			echo "<H3>$FMT[BANNER2]</H3>\n";
+		}
+
+		if ( isset($FMT['BANNER3'])){
+			echo "<H4>$FMT[BANNER3]</H4>\n";
+		}
+
+		if ( isset($_SESSION['people_id'])){
+			if ( ! isset ( $FMT['NONAV'])){
+				echo "<p class=trace>Welcome $_SESSION[full_name]</p>";
+			}
+		}
+		echo "</TD></TR>\n";
+
+		if ( ! isset ( $FMT['NONAV'])){
+		    echo "<TR><TD class=navbar COLSPAN=2>";
+        	spew_navbar($FMT);
+		    echo "</TD></TR>\n";
+		}
+
+		echo "</TABLE>\n";
+
+	}//End spew_header
+
+	//--------------------------------------------------------------------
+	// Spew Footer
+	//--------------------------------------------------------------------
+	function spew_footer(array $FMT) {
+		global $JBNCFG;
+		//
+		// Set Defaults for FMT from JBNCFG
+		//
+		foreach ($JBNCFG as $key => $val ) {
+            
+			if ( empty( $FMT[$key]) ) {
+				$FMT[$key] = $val;
+			}
+		}
+
+		echo "</BODY>\n";
+
+        echo "<BR><HR WIDTH=60%>\n";
+        echo "<TABLE WIDTH=60%>\n";
+        echo "<TR><TD class=navbar>\n";
+        spew_navbar($FMT);
+        echo "</TD></TR></TABLE>\n";
+
+		echo "<SMALL>";
+		echo "<SMALL>";
+
+		if (! isset ( $FMT['NONAV'] ) ) {
+			echo "Web Content Issues: Email \n  ";
+			echo "<A class HREF=\"mailto:";
+			echo "$FMT[AUTHOREMAIL]?subject=Jbowes_Net_Issue\">";
+			echo "Webmaster</A>\n";
+		}
+		echo "</SMALL>";
+		echo "</SMALL>";
+
+		echo "</CENTER>\n";
+		echo "</HTML>\n";
+	}//End spew_footer
+?>
+

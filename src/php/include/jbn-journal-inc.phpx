@@ -1,0 +1,225 @@
+<?php
+	//===================================================================
+	// JBN Display Journal
+	//===================================================================
+	
+	require_once ('jbn-config-inc.php');
+	require_once ('jbn-msutils-inc.php');
+
+	//----------------------------------------------------------------
+	// Function Show Journal History
+	//----------------------------------------------------------------
+	function show_journal_history ( $jid, $jtable ) {
+		require_once ('jbn-config-inc.php');
+		require_once ('jbn-msutils-inc.php');
+
+		$dbh = jbn_pdo_connect();
+		global $JBNCFG;
+		$subname = "show_journal_history";
+
+		echo "<P class=trace>Entering $subname ID: $jid, TABLE: $jtable </P>\n" ; // DEBUG DEVONLY;
+	
+		$Default = array( 
+			"journal_type"		=>	"Journal",
+			"sortby"			=>	'Date Submitted'
+			);
+	
+		$NoPropagate = array( 
+			"sortby"	=>		"sort by",
+			"thread"	=>		"thread"
+			);
+	
+		//
+		// Get List of nicknames for journal authors
+		//
+		$Who = array();
+		$AuthorEmail = array();
+		$JTypes = array();
+
+		$sql = "SELECT DISTINCT p.people_id, p.email_1, p.full_name, j.journal_type  ";
+		$sql .= " from people p, journal j";
+		$sql .= " WHERE p.people_id = j.author_id ";
+		$sql .= " AND j.source_table = ";
+		$sql .= $dbh->quote($jtable);
+		$sql .= " AND j.source_id = ";
+		$sql .= $dbh->quote($jid);
+		echo "<P class=trace>$sql</P>\n"; 	// DEVONLY
+
+		$result = $dbh->query($sql);
+		$count = $result->rowCount();
+		echo "<P class=trace>Entry count: $count</P>\n"; 	// DEVONLY
+
+		if ( $count >= 0 ){
+			while ($row = $result->fetch(PDO::FETCH_ASSOC)){
+				$pid = $row['author_id'];
+				$Who[$pid] = $row['full_name'];
+				$AuthorEmail[$pid] = $row['email_1'];
+				$jt = $row['journal_type'];
+				$JTypes[$jt]++;
+			}
+			$jtypes =  array_keys($JTypes);
+			print_r($jtypes);	// DEVONLY
+		}
+	
+		//
+		// Generate SQL query
+		//
+		
+		$jfields =  get_fields('journal','journal',$JBNCFG['DBNAME']);
+		
+		$sql = "SELECT  j.*, p.full_name, p.email_1 ";
+		$sql .= " FROM journal j, people p ";
+		$sql .= " WHERE p.people_id = j.author_id ";
+		$sql .= " AND j.source_table = ";
+		$sql .= $dbh->quote($jtable); 
+		$sql .= " AND j.source_id = ";
+		$sql .= $dbh->quote($jid);
+
+		$sql .= " ORDER BY j.date_created desc";
+		
+		echo  "<P class=trace>$sql</P>\n" ; // DEBUG DEVONLY;
+
+		//
+		// Fetch and prepackage via sort/thread criteria WWWW
+		//
+
+		$TotalEntries = '0';
+		$result = $dbh->query($sql);
+		$rowcount = $result->rowCount();
+		echo  "<P class=trace>RowCount; $rowcount</P>\n" ; // DEBUG DEVONLY;
+
+		if ( $rowcount > 0 ){
+			$Sort = array();
+			$Journal = array();
+			$Allauthors = array();
+		
+			//--------------------------------------------------------
+			// Print Journal History
+			//--------------------------------------------------------
+			$url = $_SERVER['QUERY_STRING'];
+	
+			print "<P class=trace>Incoming URI: $url</P>\n"; // DEVONLY DEBUG
+	
+			$howmany = "Entries";
+
+			if ( $rowcount == "1" ) {
+				$howmany = "Entry";
+			}
+	
+			echo "<CENTER>\n";
+	
+			print "<P class=trace>Click on summary to see details of that one entry.</P>\n"; 
+			echo "<TABLE id=${ctable}_journal_table BORDER CELLSPACING=2 CELLPADDING=4>\n";
+	
+			if ( $_REQUEST['Journal'] == "Detail" ) {
+				echo "<TH class=ths>Details of $rowcount Comment Journal $howmany\n";
+				$url = preg_replace('/=Detail/', '=Summary', $url);
+				echo "(Show <A HREF=\"$_SERVER[PHP_SELF]?$url\">summaries only</A>.)";
+				echo "</TH>\n";
+			}else{
+				echo "<TH class=ths>Summary of $rowcount Comment Journal $howmany\n";
+				$url = preg_replace('/&Journal=Summary/', '', $url);
+				echo "(Show <A HREF=\"$_SERVER[PHP_SELF]?${url}&Journal=Detail\">details</A>.)";
+				echo "</TH>\n";
+			}
+			echo "<TR>\n";
+			echo "<TD class=tds>\n";
+			echo "<UL id=journallist>\n";
+	
+			while ($row = $result->fetch(PDO::FETCH_ASSOC)){
+	
+				$ts =  timestamp2display($row['date_created']);
+				$author_id = $row['author_id'];
+	
+				echo "<LI>";
+					echo "<A HREF=\"mailto:$row[email_1]\">$row[full_name]</A> \n";
+				echo "&nbsp;[$ts]&nbsp;\n";
+				echo "<A HREF=\"/journal.php?journal_id=$row[journal_id]&Action=View\">";
+				echo "$row[journal_summary]</A>\n";
+	
+				if ( $_REQUEST['Journal'] == "Detail" ) {
+					echo "<UL id=journallistbody><LI>\n";
+					echo "<PRE>\n";
+					$cleantext = stripslashes($row[journal_detail]);
+					$display = wordwrap($cleantext, 60, "\n");
+					echo "$display";
+					echo "</PRE>\n";
+					echo "</LI></UL>\n";
+				}
+	
+				echo "</LI>\n";
+			}#Endwhile
+
+			if (! $count) {
+				echo "<LI>No journal entries</LI>\n";
+			}
+			echo "</UL>\n";
+			echo "</TD>\n";
+			echo "</TABLE>\n";
+		}else{
+			echo "<P class=trace>No Comment Journal Entries, nothing to show.</P>\n"; 	// DEVONLY
+		}
+	
+	}// End funtion show_journal_history
+
+	//----------------------------------------------------------------
+	// Function change log
+	//----------------------------------------------------------------
+	function change_log ( $jid, $jtable, $txt, $sum ) {
+		require_once ('jbn-config-inc.php');
+		require_once ('jbn-msutils-inc.php');
+
+		$dbh = jbn_pdo_connect();
+
+		global $JBNCFG;
+
+		echo "<P class=trace>Entering change_log with ID: $jid, TABLE: $jtable </P>\n" ; // DEBUG DEVONLY;
+
+		$CL = array(
+			'journal_type'		=> 'Change Log',
+			'journal_access'	=>	'Private',
+		);
+	
+		$CL['source_table']	= $jtable;
+		$CL['source_id'] = $jid;
+		$CL['author_id'] = $_SESSION['people_id'];
+		$CL['journal_summary'] = "Update $jtable ID: $jid by " . $_SESSION['full_name'];
+		if ( isset( $sum )){
+			$CL['journal_summary'] .= ': ' .  $sum;
+		}
+		$CL['journal_detail'] = "$txt";
+
+		$fieldlabel = $jfields = array();
+		$fieldlabel = get_field_labels('journal','journal',$JBNCFG['DBNAME']);
+		$jfields = array_keys($fieldlabel);
+
+		$Data = array();
+
+		foreach ($jfields as $f) {
+			if ( array_key_exists($f, $CL)) {
+				$Data[$f] = $dbh->quote($CL[$f]);
+			}
+		}
+
+		echo "<PRE>\n";	// DEVONLY
+		print_r($Data);	// DEVONLY
+		echo "</PRE>\n";	// DEVONLY
+
+		$sql = "INSERT INTO journal (";
+		$sql .= implode(',', array_keys($Data));
+		$sql .= ") VALUES (" ;
+		$sql .=  implode(',', array_values($Data));
+		$sql .= ")";
+
+		echo "<p class=trace>[$sql]</p>\n";	//DEBUG DEVONLY
+
+		$result = $dbh->query($sql);
+
+		$cl_id =  $dbh->lastInsertId();
+		echo "<p class=trace>ChangeLog Entry: $cl_id</p>\n";	//DEBUG DEVONLY
+		
+	}// End funtion change_log
+	//----------------------------------------------------------------
+	//----------------------------------------------------------------
+
+?>

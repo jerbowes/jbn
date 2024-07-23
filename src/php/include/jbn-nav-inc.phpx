@@ -1,0 +1,100 @@
+<?php
+	//==================================================================
+	// Navigation Functionality Library
+	//==================================================================
+
+	//-------------------------------------------------------------------
+	// Spew Navbar
+	//-------------------------------------------------------------------
+	function spew_navbar(array $FMT ) {
+		require_once("jbn-config-inc.php");
+
+		global $JBNCFG;
+
+		$NavHandler = array (
+			'ACCESS'		=>	"$JBNCFG[BASEURL]/access.php",
+			'ACTIVITY'		=>	"$JBNCFG[BASEURL]/activity.php",
+			'CALENDAR'		=>	"$JBNCFG[BASEURL]/calendar.php",
+			'MEDICAL'		=>	"$JBNCFG[BASEURL]/medical.php",
+			'HOME'			=>	"/",
+			'LOGIN'			=>	"$JBNCFG[BASEURL]/login.php",
+			'LOGOUT'		=>	"$JBNCFG[BASEURL]/login.php?Action=Logout",
+			'MYPROFILE'		=>	"$JBNCFG[BASEURL]/people.php",
+		);
+		
+        //
+        // What appears in navbar
+        //
+		$NavName = array(
+			'ACCESS'		=>	"Access",
+			'ACTIVITY'		=>	"Activity",
+			'CALENDAR'		=>	"Event Calendar",
+			'HOME'			=>	'Home',
+			'MEDICAL'		=>	"Medical",
+			'LOGIN'			=>	'Login',
+			'LOGOUT'		=>	'Logout',
+            'MYPROFILE'     =>  'My Profile',
+		);
+
+        //
+        // On hover description of navbar link
+        //
+		$NavMsg = array(
+			'ACCESS'		=>	"Access Logs",
+			'ACTIVITY'		=>	"Activity Logs",
+			'CALENDAR'		=>	"Event Calendar",
+			'HOME'			=>	'Home',
+			'MEDICAL'		=>	"Medical",
+			'LOGIN'		    =>	'Login to get editing capability',
+			'LOGOUT'	    =>	'Logout',
+            'MYPROFILE'     =>  'My Profile and Contact Information',
+		);
+
+		//
+		// Display List: Everything in any of below groups MUST appear here to display
+		//
+		$REQUIRED_ACCESS = array (
+			'ACCESS'		=>	'5',
+			'ACTIVITY'		=>	'5',
+			'HOME'		    =>	'0',
+			'MEDICAL'		=>	"5",
+			'MYPROFILE'	    =>	'3',	
+		);
+
+		//--------------------
+		// Determine my access
+		//--------------------
+		$my_access = '0';
+
+		if ( isset ( $_SESSION['access_level']) ) { 
+			$my_access = $_SESSION['access_level'];
+			$REQUIRED_ACCESS['LOGOUT'] = 1;
+		}else{
+			// Assume access > 0
+			$REQUIRED_ACCESS['LOGIN'] = 0;
+		}
+
+		//-----------------------------------------
+		// Navbar, Alphabetical sort by keys
+		//-----------------------------------------
+
+		$NAV = array();
+		ksort($REQUIRED_ACCESS);
+		foreach ($REQUIRED_ACCESS as $key => $val ) {
+			if ( $my_access >= $val ) {
+				if ( array_key_exists( $key , $NavHandler) ) {
+					$NAV[$key] = "<A class=navbar HREF=$NavHandler[$key] TITLE=\"$NavMsg[$key]\">$NavName[$key]</A>";
+				}
+			}
+		}
+
+		//-----------------------------------------
+		// Top Navbar, Alphabetical sort by keys
+		//-----------------------------------------
+		$showme = implode('&nbsp;&nbsp;|&nbsp;&nbsp;', $NAV);
+		//echo "<FONT SIZE=-2>$showme</FONT>";
+		echo "$showme";
+
+	}//Endfunction spew_navbar
+	//--------------------------------------------------------------------
+?>
